@@ -1,15 +1,10 @@
 """
-B+Tree implementation in python using disk persistence
-
-
+B+Tree implementation in python with in-memory storage
 """
 
 import bisect
-import time
 from logging import getLogger
 from math import ceil
-from operator import index
-from token import ASYNC
 from typing import TypeVar, Optional, List
 
 import graphviz
@@ -57,12 +52,8 @@ class TreeNode:
         sibling_node.keys = self.keys[mid_idx + 1 :]
         self.keys = self.keys[: mid_idx + 1]
 
-        # only leaf that needs next reference, will help on deletion
         # todo: create next and previous reference
-        # and properly update them on split and merge on random insertion
-        # if self.is_leaf:
-        #     self.next = sibling_node
-        #     sibling_node.previous = self
+        #  and properly update them on split and merge on random insertion
 
         # only non-leaf that has children, it needs to be migrated to new node.
         if not self.is_leaf:
@@ -103,6 +94,7 @@ class BPlusTree:
         """
         leaf = self._find_leaf_node(self.root, key)
 
+        # for debugging
         self._deleted_key = key
 
         return self._delete_key(key, leaf)
@@ -226,11 +218,7 @@ class BPlusTree:
         # If the node is the root, and it has no keys,
         # make its first child the new root
         if node.parent is None:
-            try:
-                assert len(node.keys) == 0
-            except AssertionError:
-                logger.error(f"node: {node}")
-                raise AssertionError
+            assert len(node.keys) == 0
             # 0 children means that the tree is empty
             # otherwise, the root has only one child
             assert len(node.children) in [0, 1]
@@ -289,18 +277,6 @@ class BPlusTree:
         assert right_sibling is not None
         parent = node.parent
 
-        # edge case:
-        # if current node is empty, means that the last deleted key is the separator key.
-        # we need to ignore the separator key of `node`
-        # if len(node.keys) == 0:
-        #     separator_key_index = parent.children.index(node)
-        #     borrowed_key = right_sibling.keys.pop(0)
-        #
-        #     # update the separator key in the parent
-        #     parent.keys[separator_key_index] = borrowed_key
-        #
-        #     node.keys.append(borrowed_key)
-        # else:
         separator_key_index = parent.children.index(node)
         borrowed_key = right_sibling.keys.pop(0)
 
@@ -354,8 +330,7 @@ class BPlusTree:
             assert right_sibling is not None
             assert right_sibling is not None
 
-            separator_key = parent.keys.pop(node_index)
-            # node.keys.append(separator_key)
+            parent.keys.pop(node_index)
 
             # move all keys form right sibling to current node
             node.keys.extend(right_sibling.keys)
@@ -377,13 +352,12 @@ class BPlusTree:
                 self._handle_underflow(parent)
 
     def graph(self, step, key=""):
+        from queue import Queue
+
         dot = graphviz.Digraph()
         dot.attr("node", shape="square")
 
         edges = set()
-
-        from queue import Queue
-
         queue = Queue()
         queue.put(self.root)
 
