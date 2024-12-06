@@ -1,0 +1,43 @@
+#!/bin/bash
+
+## this will retrieve all of the .go files that have been
+## changed since the last commit
+STAGED_GO_FILES=$(git diff --cached --name-only -- '*.go')
+
+function log_event(){
+  timestamp=$(date '+%D %T') #mm/dd/yy HH:MM:SS
+    echo -e "($timestamp) $event"
+}
+
+function check_err(){
+  if [ "$exit_status" = 0 ]
+      then
+          event="$output"
+          log_event
+      else
+          event="ERROR $output"
+          log_event
+  fi
+}
+
+
+## we can check to see if this is empty
+if [[ $STAGED_GO_FILES == "" ]]; then
+    echo "No Go Files to Update"
+## otherwise we can do stuff with these changed go files
+
+else
+      for file in $STAGED_GO_FILES; do
+            echo "formatting $file"
+
+            output=$(go fmt $file 2>&1) && exit_status=$? || exit_status=$?
+            check_err
+
+            output=$(goimports -w $file 2>&1) && exit_status=$? || exit_status=$?
+            check_err
+
+            output=$(git add $file 2>&1) && exit_status=$? || exit_status=$?
+            check_err
+
+        done
+fi
