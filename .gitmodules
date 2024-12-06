@@ -1,0 +1,3 @@
+[submodule "simpledb-c"]
+	path = simpledb-c
+	url = ./simpledb-c
